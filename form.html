@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Consent Submission Form</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+      body {
+        background-image: url("https://dementiasolutions.ca/wp-content/uploads/2021/09/Understanding-Therapeutic-Reasoning-Personalized-Dementia-Solutions-Inc.-1024x683.png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        min-height: 100vh;
+        display: flex; /* Use flexbox for body */
+        flex-direction: column; /* Stack children vertically */
+      }
+      .main-content {
+         flex-grow: 1; /* Allow main content to grow and push footer down */
+      }
+      .form-container {
+        background-color: rgba(255, 255, 255, 0.92); /* Slightly more opaque */
+        border-radius: 12px;
+        box-shadow: rgba(0, 0, 0, 0.2) 0px 10px 25px;
+        margin: 0 auto;
+        padding: 1.5rem 2rem; /* Adjusted padding */
+        margin-top: 0;
+      }
+      .header-bar {
+        background-color: #ff7420;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        width: 100%; /* Ensure header spans full width */
+      }
+      .logo-container {
+        background-color: white;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 15px;
+        flex-shrink: 0; /* Prevent logo container from shrinking */
+      }
+      .logo {
+        height: 30px;
+        width: auto;
+      }
+      .header-title {
+        flex-grow: 1;
+        text-align: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.25rem; /* Adjusted size */
+         /* Removed right padding, rely on flex-grow and center */
+      }
+      /* Add a spacer div to push title left if logo is present */
+      .header-spacer {
+         width: calc(30px + 30px); /* Approx width of logo container */
+         flex-shrink: 0;
+      }
+      .footer-bar {
+        background-color: #ff7420;
+        height: 27px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%; /* Ensure footer spans full width */
+        margin-top: auto; /* Push footer to the bottom */
+      }
+      .footer-bar span {
+        color: white;
+        font-size: 0.875rem; /* Slightly smaller */
+      }
+      /* Style disabled inputs/selects */
+      input:disabled,
+      select:disabled,
+      textarea:disabled {
+        background-color: #e5e7eb; /* Tailwind gray-200 */
+        cursor: not-allowed;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header-bar">
+      <div class="logo-container">
+        <img
+          src="https://cdn.prod.website-files.com/677fe16fd0b28fb6789a126f/678fbeee351061d91e94acaa_Vectors-Wrapper.svg"
+          alt="Logo"
+          class="logo"
+        />
+      </div>
+      <div class="header-title">Consent Submission Form</div>
+      <!-- Add a spacer to balance the title visually -->
+      <div class="header-spacer"></div>
+    </div>
+
+    <div class="main-content container mx-auto max-w-4xl py-6"> <!-- Adjusted padding -->
+      <div id="form" class="tab-content form-container">
+        <form id="consentForm" class="form-card p-4 space-y-4"> <!-- Reduced spacing -->
+          <!-- Fields -->
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="form-group">
+              <label
+                for="name"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Name <span class="text-red-500">*</span></label
+              ><input
+                type="text"
+                id="name"
+                name="name"
+                placeholder="Resident's full name"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+                required
+              />
+            </div>
+            <div class="form-group">
+               <!-- CORRECTED ACCOUNT NUMBER INPUT -->
+               <label
+                for="account"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Account Number <span class="text-red-500">*</span></label
+               >
+               <input
+                type="text"
+                id="account"
+                name="account"
+                placeholder="Resident's account number"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+                required
+               />
+               <!-- END CORRECTION -->
+            </div>
+          </div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="form-group">
+              <label
+                for="department"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Department / Service <span class="text-red-500">*</span></label
+              ><select
+                id="department"
+                name="department"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                required
+              >
+                <option value="" disabled selected>-- Select Service --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label
+                for="treatmentMonth"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Treatment Month <span class="text-red-500">*</span></label
+              ><select
+                id="treatmentMonth"
+                name="treatmentMonth"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                required
+              >
+                 <option value="" disabled selected>-- Select Month --</option>
+                </select>
+            </div>
+          </div>
+           <div class="grid md:grid-cols-2 gap-4">
+            <div class="form-group">
+              <label
+                for="facility"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Facility <span class="text-red-500">*</span></label
+              ><select
+                id="facility"
+                name="facility"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                required
+              >
+                <option value="" disabled selected>-- Select Facility --</option>
+            </select>
+            </div>
+             <div class="form-group">
+              <label
+                for="room"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Room #</label
+              ><input
+                type="text"
+                id="room"
+                name="room"
+                placeholder="Resident's room number"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+              />
+            </div>
+          </div>
+
+           <hr class="my-4"> <!-- Separator -->
+           <h3 class="text-lg font-semibold text-gray-700 mb-2 text-center">Consent Details</h3>
+
+
+          <div class="grid md:grid-cols-2 gap-4">
+             <div class="form-group">
+              <label
+                for="ddsConsent"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Dental Consent</label
+              ><input
+                type="text"
+                id="ddsConsent"
+                name="ddsConsent"
+                placeholder="Dental consent details (if applicable)"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+                disabled
+              />
+            </div>
+             <div class="form-group">
+              <label
+                for="dhConsent"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Hygiene Consent</label
+              ><input
+                type="text"
+                id="dhConsent"
+                name="dhConsent"
+                placeholder="Hygiene consent details (if applicable)"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+                disabled
+              />
+            </div>
+          </div>
+          <div class="grid md:grid-cols-2 gap-4">
+             <div class="form-group">
+              <label
+                for="denturesConsent"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Dentures Consent</label
+              ><input
+                type="text"
+                id="denturesConsent"
+                name="denturesConsent"
+                placeholder="Dentures consent details (if applicable)"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+                disabled
+              />
+            </div>
+             <div class="form-group">
+              <label
+                for="frequency"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >GCWP Frequency (Visits per year)</label
+              ><input
+                type="number"
+                id="frequency"
+                name="frequency"
+                min="1"
+                max="12"
+                placeholder="1-12 (Wellness Program Only)"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+                disabled
+              />
+            </div>
+          </div>
+
+           <div class="grid md:grid-cols-2 gap-4">
+               <div class="form-group">
+                  <label
+                    for="consentReceivedBy"
+                    class="block text-sm font-medium text-gray-700 mb-1"
+                    >Consent Received By <span class="text-red-500">*</span></label
+                  ><select
+                    id="consentReceivedBy"
+                    name="consentReceivedBy"
+                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                    required
+                  >
+                    <option value="" disabled selected>-- Select Staff --</option>
+                    </select>
+                </div>
+                 <div class="form-group">
+                  <label for="nok" class="block text-sm font-medium text-gray-700 mb-1"
+                    >Presence of POA <span class="text-red-500">*</span></label
+                  ><select
+                    id="nok"
+                    name="nok"
+                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                    required
+                  >
+                   <option value="" disabled selected>-- Select Option --</option>
+                </select>
+                </div>
+            </div>
+
+            <hr class="my-4"> <!-- Separator -->
+            <h3 class="text-lg font-semibold text-gray-700 mb-2 text-center">Additional Information</h3>
+
+
+           <div class="grid md:grid-cols-2 gap-4">
+             <div class="form-group">
+                <label
+                for="sedation"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Sedation Needed</label
+                ><select
+                id="sedation"
+                name="sedation"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
+                >
+                 <option value="" disabled selected>-- Select Option --</option>
+                </select>
+             </div>
+              <div class="form-group">
+                <label
+                for="medication"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Pre-Medication Required?</label
+                ><input
+                type="text"
+                id="medication"
+                name="medication"
+                placeholder="e.g., Yes - Amoxicillin 2g"
+                class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+                />
+             </div>
+           </div>
+
+          <div class="form-group">
+            <label
+              for="noteForScheduler"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Note for Scheduler</label
+            ><textarea
+              id="noteForScheduler"
+              name="noteForScheduler"
+              rows="2"
+              placeholder="e.g., Prefers morning appointments, specific assistance needed"
+              class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label
+              for="additionalNote"
+              class="block text-sm font-medium text-gray-700 mb-1"
+              >Additional Note (for facility use)</label
+            ><textarea
+              id="additionalNote"
+              name="additionalNote"
+              rows="2"
+              placeholder="e.g., Family contact info, specific care needs"
+              class="form-input w-full px-3 py-2 border border-gray-300 rounded-md"
+            ></textarea>
+          </div>
+
+          <div class="text-center pt-4">
+            <button
+              type="submit"
+              id="submitBtn"
+              class="bg-blue-600 text-white px-8 py-2.5 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300 disabled:opacity-50"
+            >
+              Submit Consent
+            </button>
+             <p id="loadingIndicator" class="text-sm text-gray-600 mt-2 hidden">
+                Submitting... Please wait.
+             </p>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      // Firebase Config remains the same...
+      const firebaseConfig = {
+        apiKey: "AIzaSyAHLfxUu_kCE10jSF00cMlKzEyn0dGVx7Y", // Use environment variables in production
+        authDomain: "goldencaredb-c68d6.firebaseapp.com",
+        projectId: "goldencaredb-c68d6",
+        storageBucket: "goldencaredb-c68d6.firebasestorage.app",
+        messagingSenderId: "321322082859",
+        appId: "1:321322082859:web:f8683ced96856fa36c406e",
+        measurementId: "G-X79VXTRJP2",
+      };
+
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+
+      // Collections
+      const dentalCollection = db.collection("dental");
+      const hygieneCollection = db.collection("hygiene");
+      const denturesCollection = db.collection("dentures");
+
+      // --- DOM Elements ---
+      const elements = {
+          form: document.getElementById('consentForm'),
+          nameInput: document.getElementById('name'),
+          accountInput: document.getElementById('account'),
+          departmentSelect: document.getElementById('department'),
+          sedationSelect: document.getElementById('sedation'),
+          nokSelect: document.getElementById('nok'),
+          medicationInput: document.getElementById('medication'),
+          ddsConsentInput: document.getElementById('ddsConsent'),
+          dhConsentInput: document.getElementById('dhConsent'),
+          denturesConsentInput: document.getElementById('denturesConsent'),
+          consentReceivedBySelect: document.getElementById('consentReceivedBy'),
+          treatmentMonthSelect: document.getElementById('treatmentMonth'),
+          roomInput: document.getElementById('room'),
+          facilitySelect: document.getElementById('facility'),
+          noteForSchedulerInput: document.getElementById('noteForScheduler'),
+          additionalNoteInput: document.getElementById('additionalNote'),
+          frequencyInput: document.getElementById('frequency'),
+          submitBtn: document.getElementById('submitBtn'),
+          loadingIndicator: document.getElementById('loadingIndicator')
+      };
+
+// First, update the DEPARTMENTS constant
+const DEPARTMENTS = {
+    DENTAL: 'Dental',
+    HYGIENE: 'Hygiene',
+    DENTURES: 'Dentures',
+    DENTAL_AND_HYGIENE: 'Dental And Hygiene',
+    DENTAL_AND_DENTURES: 'Dental And Dentures',
+    HYGIENE_AND_DENTURES: 'Hygiene And Dentures',
+    DENTAL_HYGIENE_AND_DENTURES: 'Dental, Hygiene And Dentures',
+    GCWP: 'Golden Care Wellness Program'
+};
+      const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+      // --- Helper Functions ---
+
+      async function populateDropdown(collectionName, dropdownElement, valueField = 'value', nameField = 'name') {
+          if (dropdownElement.id === 'treatmentMonth') {
+              // Populate treatmentMonth dropdown with months for 2025 and 2026 in correct sequence
+              dropdownElement.innerHTML = ''; // Clear existing options
+              const defaultOption = document.createElement("option");
+              defaultOption.value = "";
+              defaultOption.textContent = "-- Select Month --";
+              defaultOption.disabled = true;
+              defaultOption.selected = true;
+              dropdownElement.appendChild(defaultOption);
+
+              const years = [2025, 2026];
+              years.forEach(year => {
+                  MONTHS.forEach(month => {
+                      const option = document.createElement("option");
+                      option.value = `${month} ${year}`;
+                      option.textContent = `${month} ${year}`;
+                      dropdownElement.appendChild(option);
+                  });
+              });
+              return;
+          }
+          const defaultOptionValue = dropdownElement.querySelector('option[disabled]')?.value || "";
+          const currentSelection = dropdownElement.value; // Store current selection if any
+          dropdownElement.innerHTML = ''; // Clear existing options first
+
+          // Re-add the default disabled option
+          const defaultOption = document.createElement('option');
+          defaultOption.value = "";
+          defaultOption.textContent = `-- Select ${getFieldLabel(dropdownElement.id)} --`;
+          defaultOption.disabled = true;
+          defaultOption.selected = true; // Make it selected initially
+          dropdownElement.appendChild(defaultOption);
+
+          try {
+            console.log(`Populating dropdown ${dropdownElement.id} from ${collectionName}`);
+            const snapshot = await db.collection(collectionName).orderBy(valueField).get();
+            if (snapshot.empty) {
+                console.warn(`No documents found in ${collectionName} for dropdown ${dropdownElement.id}`);
+                return;
+            }
+            snapshot.forEach((doc) => {
+              const data = doc.data();
+              const value = data[valueField] || doc.id;
+              const name = data[nameField] || value;
+              const option = document.createElement("option");
+              option.value = value;
+              option.textContent = name;
+              // Re-select previous value if it exists in new options
+              if (value === currentSelection) {
+                  option.selected = true;
+                  defaultOption.selected = false; // Unselect the default
+              }
+              dropdownElement.appendChild(option);
+            });
+          } catch (error) {
+            console.error(`Error populating ${dropdownElement.id}:`, error);
+             const errorOption = document.createElement("option");
+             errorOption.value = "";
+             errorOption.textContent = "Error loading options";
+             errorOption.disabled = true;
+             dropdownElement.appendChild(errorOption);
+          }
+      }
+
+      function capitalizeWords(input) {
+          if (!input) return '';
+          return input.toLowerCase().replace(/(?:^|\s|-|')\S/g, (char) => char.toUpperCase());
+      }
+
+      function generateUniqueId() {
+          const now = new Date();
+          const timestamp = now.getTime();
+          const randomPart = Math.random().toString(36).substring(2, 8);
+          return `${timestamp}-${randomPart}`;
+      }
+
+       function getNextMonthYear(currentMonth, currentYear) {
+          const monthIndex = MONTHS.indexOf(currentMonth);
+          if (monthIndex === -1) return { month: currentMonth, year: currentYear };
+
+          const nextMonthIndex = (monthIndex + 1) % 12;
+          const nextYear = (monthIndex === 11) ? currentYear + 1 : currentYear;
+          return { month: MONTHS[nextMonthIndex], year: nextYear };
+      }
+
+       function getFieldLabel(fieldId) {
+            const labels = {
+                department: 'Service', sedation: 'Sedation', nok: 'POA Presence',
+                consentReceivedBy: 'Staff', treatmentMonth: 'Month', facility: 'Facility'
+            };
+            return labels[fieldId] || 'Option';
+      }
+
+      // --- Form Logic ---
+
+      // THIS FUNCTION CONTROLS WHICH BOXES ARE ENABLED/REQUIRED
+      function updateFormState() {
+          const department = elements.departmentSelect.value;
+          console.log("Department selected:", department);
+
+          const dds = elements.ddsConsentInput;
+          const dh = elements.dhConsentInput;
+          const dent = elements.denturesConsentInput;
+          const freq = elements.frequencyInput;
+
+          // Reset: Disable all conditional fields and remove required attribute
+          dds.disabled = true;
+          dds.required = false; // Not mandatory for GCWP
+          dh.disabled = true;
+          dent.disabled = true;
+          freq.disabled = true;
+
+          // Enable Dental consent for appropriate departments
+          if (department === DEPARTMENTS.DENTAL || 
+              department === DEPARTMENTS.DENTAL_AND_HYGIENE || 
+              department === DEPARTMENTS.DENTAL_AND_DENTURES || 
+              department === DEPARTMENTS.DENTAL_HYGIENE_AND_DENTURES || 
+              department === DEPARTMENTS.GCWP) {
+              dds.disabled = false;
+          }
+
+          // Enable Hygiene consent for appropriate departments
+          if (department === DEPARTMENTS.HYGIENE || 
+              department === DEPARTMENTS.DENTAL_AND_HYGIENE || 
+              department === DEPARTMENTS.HYGIENE_AND_DENTURES || 
+              department === DEPARTMENTS.DENTAL_HYGIENE_AND_DENTURES || 
+              department === DEPARTMENTS.GCWP) {
+              dh.disabled = false;
+              dh.required = true;
+          }
+
+          // Enable Dentures consent for appropriate departments
+          if (department === DEPARTMENTS.DENTURES || 
+              department === DEPARTMENTS.DENTAL_AND_DENTURES || 
+              department === DEPARTMENTS.HYGIENE_AND_DENTURES || 
+              department === DEPARTMENTS.DENTAL_HYGIENE_AND_DENTURES) {
+              dent.disabled = false;
+              dent.required = true;
+          }
+
+          // Enable frequency for GCWP
+          if (department === DEPARTMENTS.GCWP) {
+              freq.disabled = false;
+              freq.required = true;
+          }
+
+          console.log("Updated form state for department:", department);
+      }
+
+      async function checkExistingRecord(collection, accountNumber, treatmentMonth, consentValue, consentField = 'consent') {
+          if (!accountNumber || !treatmentMonth || !consentValue) {
+              // Only warn if the check was actually required for this consent type
+              const isConsentFieldRequired =
+                 (collection.id === 'dental' && elements.ddsConsentInput.required) ||
+                 (collection.id === 'hygiene' && elements.dhConsentInput.required) ||
+                 (collection.id === 'dentures' && elements.denturesConsentInput.required);
+
+              if(isConsentFieldRequired) {
+                   console.warn(`Skipping check for ${collection.id}: Missing Account, Month, or Consent Value for a required field.`);
+                   // Optionally alert the user or throw an error if this check is critical
+                   // alert(`Cannot check for existing ${collection.id} record. Please ensure Account, Month, and the relevant Consent field are filled.`);
+                   // return true; // Treat as potentially existing if critical info is missing
+              } else {
+                  // If the consent field itself wasn't required for this department, don't block submission
+                  console.log(`Skipping check for optional/disabled consent field: ${consentField} in ${collection.id}`);
+              }
+              return false; // Allow submission if check isn't possible due to non-required missing info
+          }
+          console.log(`Checking existing in ${collection.id}: Acc=${accountNumber}, Month=${treatmentMonth}, ${consentField}=${consentValue}`);
+          try {
+              const querySnapshot = await collection
+                  .where('accountNumber', '==', accountNumber)
+                  .where('treatmentMonth', '==', treatmentMonth)
+                  .where(consentField, '==', consentValue)
+                  .limit(1)
+                  .get();
+
+              if (!querySnapshot.empty) {
+                  console.log("Existing record found:", querySnapshot.docs[0].data());
+                  return true; // Record exists
+              }
+              return false; // No matching record found
+          } catch (error) {
+              console.error(`Error checking for existing record in ${collection.id}:`, error);
+              alert(`Error checking for existing records. Cannot submit form. ${error.message}`);
+              return true; // Treat check error as potentially existing to be safe
+          }
+      }
+
+
+      async function handleFormSubmit(event) {
+        event.preventDefault();
+        elements.submitBtn.disabled = true;
+        elements.loadingIndicator.classList.remove('hidden');
+
+        const department = elements.departmentSelect.value;
+        const accountNumber = elements.accountInput.value.trim();
+        const treatmentMonth = elements.treatmentMonthSelect.value;
+        const ddsConsent = elements.ddsConsentInput.value.trim();
+        const dhConsent = elements.dhConsentInput.value.trim();
+        const denturesConsent = elements.denturesConsentInput.value.trim();
+
+        let preCheckFailed = false;
+        // Determine which checks are needed based on *enabled and required* fields
+        let requiresDdsCheck = !elements.ddsConsentInput.disabled && elements.ddsConsentInput.required;
+        let requiresDhCheck = !elements.dhConsentInput.disabled && elements.dhConsentInput.required;
+        let requiresDenturesCheck = !elements.denturesConsentInput.disabled && elements.denturesConsentInput.required;
+
+        // --- Pre-Submission Checks ---
+        try {
+             // Check only if the corresponding consent field is required for the selected department
+            if (requiresDdsCheck) {
+                 console.log("Performing DDS Pre-check...");
+                 if (await checkExistingRecord(dentalCollection, accountNumber, treatmentMonth, ddsConsent)) {
+                    alert(`An existing DENTAL consent record was found for Account ${accountNumber}, Month ${treatmentMonth}, and the provided Dental Consent value. Submission halted.`);
+                    preCheckFailed = true;
+                 }
+            }
+             if (!preCheckFailed && requiresDhCheck) {
+                 console.log("Performing DH Pre-check...");
+                 if (await checkExistingRecord(hygieneCollection, accountNumber, treatmentMonth, dhConsent)) {
+                    alert(`An existing HYGIENE consent record was found for Account ${accountNumber}, Month ${treatmentMonth}, and the provided Hygiene Consent value. Submission halted.`);
+                    preCheckFailed = true;
+                 }
+             }
+            if (!preCheckFailed && requiresDenturesCheck) {
+                 console.log("Performing Dentures Pre-check...");
+                 if (await checkExistingRecord(denturesCollection, accountNumber, treatmentMonth, denturesConsent)) {
+                    alert(`An existing DENTURES consent record was found for Account ${accountNumber}, Month ${treatmentMonth}, and the provided Dentures Consent value. Submission halted.`);
+                    preCheckFailed = true;
+                 }
+            }
+        } catch (error) {
+            preCheckFailed = true; // Error during check already alerted
+        }
+
+        if (preCheckFailed) {
+            elements.submitBtn.disabled = false;
+            elements.loadingIndicator.classList.add('hidden');
+            return; // Stop submission
+        }
+        console.log("Pre-checks passed.");
+
+        // --- Data Collection (Base) ---
+         const baseFormData = {
+            name: elements.nameInput.value.trim(),
+            accountNumber: accountNumber,
+            department: department,
+            sedationType: elements.sedationSelect.value || "", // Ensure empty string if not selected
+            presenceOfPoa: elements.nokSelect.value,
+            medication: elements.medicationInput.value.trim() || "",
+            consentReceivedBy: elements.consentReceivedBySelect.value,
+            treatmentMonth: treatmentMonth,
+            roomNumber: elements.roomInput.value.trim() || "",
+            facility: elements.facilitySelect.value,
+            schedulerNote: elements.noteForSchedulerInput.value.trim() || "",
+            facilityNote: elements.additionalNoteInput.value.trim() || "",
+            submissionDate: firebase.firestore.FieldValue.serverTimestamp(), // Use server timestamp
+            status: 'Consented',
+         };
+
+
+        // --- Submission Logic ---
+        let submissionPromises = [];
+        let submittedCollections = new Set();
+
+        try {
+             console.log(`Processing submission for department: ${department}`);
+            // Determine which collections to write to based on enabled fields
+            const submitToDental = requiresDdsCheck;
+            const submitToHygiene = requiresDhCheck;
+            const submitToDentures = requiresDenturesCheck;
+            const isGCWP = department === DEPARTMENTS.GCWP;
+
+            // Handle Dental Submission (if needed)
+             if (submitToDental) {
+                 const dentalData = {
+                    ...baseFormData,
+                    consent: ddsConsent,
+                    uniqueId: generateUniqueId()
+                 };
+                 console.log("Queueing Dental submission:", dentalData);
+                 submissionPromises.push(dentalCollection.doc(dentalData.uniqueId).set(dentalData));
+                 submittedCollections.add('Dental');
+             }
+
+             // Handle Hygiene Submission (if needed, includes GCWP)
+             if (submitToHygiene) {
+                 if (isGCWP) {
+                    // GCWP specific logic
+                    const frequency = parseInt(elements.frequencyInput.value, 10);
+                    if (isNaN(frequency) || frequency < 1 || frequency > 12) {
+                        throw new Error("Invalid frequency value (1-12) for Golden Care Wellness Program.");
+                    }
+                    const submissionsNeeded = Math.max(1, Math.floor(12 / frequency)); // Ensure at least 1
+
+                    let treatmentMonthValue = elements.treatmentMonthSelect.value;
+
+                    // GCWP Dental Submission (if needed, done only once)
+                    if (ddsConsent && !submittedCollections.has('Dental (GCWP)')) {
+                        const dentalData = {
+                            ...baseFormData,
+                            consent: ddsConsent,
+                            gcwp: 'Yes',
+                            uniqueId: generateUniqueId(),
+                            treatmentMonth: treatmentMonth // Use initial treatmentMonth
+                        };
+                        console.log("Queueing GCWP Dental submission:", dentalData);
+                        submissionPromises.push(dentalCollection.doc(dentalData.uniqueId).set(dentalData));
+                        submittedCollections.add('Dental (GCWP)');
+                    }
+
+                    // First GCWP submission (Hygiene)
+                    const firstData = {
+                        ...baseFormData,
+                        consent: dhConsent,
+                        gcwp: 'Yes',
+                        frequency: frequency,
+                        uniqueId: generateUniqueId(),
+                        treatmentMonth: treatmentMonthValue // Use initial treatmentMonth
+                    };
+                    console.log("Queueing GCWP First submission:", firstData);
+                    submissionPromises.push(hygieneCollection.doc(firstData.uniqueId).set(firstData));
+                    submittedCollections.add(`Hygiene (GCWP Start - ${frequency}/yr)`);
+
+                    // Subsequent GCWP submissions (Hygiene)
+                    let nextMonth = treatmentMonthValue;
+                    for (let i = 1; i < submissionsNeeded; i++) {
+                        const nextMonthDate = new Date(new Date(treatmentMonthValue).setMonth(new Date(treatmentMonthValue).getMonth() + (frequency * i)));
+                        const nextMonthName = MONTHS[nextMonthDate.getMonth()];
+                        const nextYearValue = nextMonthDate.getFullYear();
+                        nextMonth = `${nextMonthName} ${nextYearValue}`;
+
+                        const subsequentData = {
+                            ...baseFormData,
+                            treatmentMonth: nextMonth, // Updated month
+                            consent: dhConsent,
+                            gcwp: 'Follow-up',
+                            frequency: frequency,
+                            uniqueId: generateUniqueId() // New ID!
+                            // submissionDate will be set by serverTimestamp() on write
+                        };
+                        console.log(`Queueing GCWP Follow-up (${i + 1}/${submissionsNeeded}):`, subsequentData);
+                        submissionPromises.push(hygieneCollection.doc(subsequentData.uniqueId).set(subsequentData));
+                    }
+                    if (submissionsNeeded > 1) {
+                        submittedCollections.add(`Hygiene (GCWP Follow-up x${submissionsNeeded - 1})`);
+                    }
+
+                 } else {
+                    // Regular Hygiene submission (not GCWP)
+                     const hygieneData = {
+                         ...baseFormData,
+                         consent: dhConsent,
+                         uniqueId: generateUniqueId()
+                     };
+                     console.log("Queueing Hygiene submission:", hygieneData);
+                     submissionPromises.push(hygieneCollection.doc(hygieneData.uniqueId).set(hygieneData));
+                     submittedCollections.add('Hygiene');
+                 }
+             }
+
+             // Handle Dentures Submission (if needed)
+             if (submitToDentures) {
+                 const denturesData = {
+                    ...baseFormData,
+                    consent: denturesConsent,
+                    uniqueId: generateUniqueId()
+                 };
+                 console.log("Queueing Dentures submission:", denturesData);
+                 submissionPromises.push(denturesCollection.doc(denturesData.uniqueId).set(denturesData));
+                 submittedCollections.add('Dentures');
+             }
+
+            // Await all queued submissions
+            console.log(`Awaiting ${submissionPromises.length} submissions...`);
+            await Promise.all(submissionPromises);
+            console.log("All submissions complete.");
+
+            alert(`Form submitted successfully!\nData sent to: ${[...submittedCollections].join(', ')}`);
+            elements.form.reset();
+            updateFormState(); // Reset field disabled states
+
+        } catch (error) {
+            console.error("Error during form submission processing:", error);
+            alert(`Failed to submit the form. ${error.message}`);
+        } finally {
+            elements.submitBtn.disabled = false;
+            elements.loadingIndicator.classList.add('hidden');
+        }
+      }
+
+      // --- Event Listeners ---
+      elements.nameInput.addEventListener("input", (e) => {
+        // e.target.value = capitalizeWords(e.target.value); // Optional auto-capitalize
+      });
+
+      elements.departmentSelect.addEventListener("change", updateFormState);
+
+      elements.form.addEventListener('submit', handleFormSubmit);
+
+
+      // --- Initialization ---
+      window.onload = async () => {
+        console.log("Initializing form...");
+        try {
+            await Promise.all([
+                populateDropdown("validation_department", elements.departmentSelect, 'value', 'value'),
+                populateDropdown("validation_medication", elements.sedationSelect),
+                populateDropdown("validation_presenceOfNok", elements.nokSelect),
+                populateDropdown("validation_consentReceivedBy", elements.consentReceivedBySelect),
+                populateDropdown("validation_treatmentMonth", elements.treatmentMonthSelect),
+                populateDropdown("validation_facility", elements.facilitySelect),
+            ]);
+             updateFormState(); // Set initial disabled state based on default selection
+             console.log("Form initialization complete.");
+        } catch (error) {
+          console.error("Error during initialization:", error);
+           alert("There was an error loading form options. Please refresh the page or contact support.");
+        }
+      };
+    </script>
+
+    <footer class="footer-bar">
+      <span>© 2025 Golden Care. All rights reserved.</span>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consent Data Viewer - Golden Care</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    /* Define primary color using Tailwind's theme extension approach (ideal)
+       or override directly if simpler for this example */
+    .bg-primary { background-color: #FF7420; }
+    .text-primary { color: #FF7420; }
+    .border-primary { border-color: #FF7420; }
+    .hover\:bg-primary-dark:hover { background-color: #E06010; } /* Darker shade for hover */
+    .focus\:ring-primary:focus { --tw-ring-color: #FF7420; }
+
+    /* Custom styles for finer control */
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    }
+
+    /* Sticky Header for Table */
+    .table-wrapper thead th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #FFF5E6; /* accent-color */
+    }
+
+    /* Sort Arrows */
+    .sortable { cursor: pointer; }
+    .sort-asc::after { content: ' ▲'; font-size: 0.7em; }
+    .sort-desc::after { content: ' ▼'; font-size: 0.7em; }
+
+    /* Modal Styling */
+    .modal { transition: opacity 0.2s ease-in-out; }
+    .modal-content { transition: transform 0.2s ease-in-out; }
+    .modal-entering { opacity: 0; }
+    .modal-entering .modal-content { transform: scale(0.95); }
+    .modal-entered { opacity: 1; }
+    .modal-entered .modal-content { transform: scale(1); }
+
+    /* Selected Row */
+    tbody tr.selected {
+        background-color: #FFF5E6; /* accent-color */
+        --tw-shadow: 0 0 0 2px #FF7420; /* primary-color */
+        box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+    }
+
+    /* Editable Cell Indicator */
+    td.editable { cursor: pointer; position: relative; }
+    td.editable:hover::after {
+      content: "✎";
+      position: absolute;
+      right: 5px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #FF7420; /* primary-color */
+      font-size: 0.8em;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col min-h-screen">
+
+<header class="bg-primary text-white shadow-md relative">
+  <div class="bg-white p-1 rounded-sm flex items-center justify-center h-8 w-auto absolute left-0 top-0">
+    <img src="https://cdn.prod.website-files.com/677fe16fd0b28fb6789a126f/678fbeee351061d91e94acaa_Vectors-Wrapper.svg" alt="Golden Care Logo" class="h-5">
+  </div>
+  <div class="container mx-auto py-0.5 flex justify-between items-center">
+    <div class="flex-1">
+    </div>
+    <h1 class="text-xl font-semibold flex-1 text-center">Consent Data Viewer</h1>
+    <div class="flex-1 flex justify-end">
+      <button id="authBtn" class="bg-white text-primary px-4 py-1 rounded-md text-sm font-medium hover:bg-gray-100 transition duration-150 ease-in-out">
+        Admin Login
+      </button>
+    </div>
+  </div>
+</header>
+
+
+  <!-- Main Content -->
+  <main class="flex-grow px-1 py-1 flex flex-col">
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-300 mb-4">
+      <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+        <button class="tab whitespace-nowrap py-2 px-4 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="dental">
+          Dental
+        </button>
+        <button class="tab whitespace-nowrap py-2 px-4 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="hygiene">
+          Hygiene
+        </button>
+        <button class="tab whitespace-nowrap py-2 px-4 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="dentures">
+          Dentures
+        </button>
+      </nav>
+    </div>
+
+    <!-- Controls -->
+    <div class="bg-white p-3 rounded-md shadow-sm mb-4 flex flex-wrap items-center gap-4">
+        <div class="relative flex-grow sm:flex-grow-0">
+            <input type="text" id="searchBox" class="search-box pl-8 pr-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm w-full sm:w-64" placeholder="Search...">
+             <svg class="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 transform -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
+        <div id="filterContainer" class="flex flex-wrap gap-2">
+            <!-- Filters will be added dynamically -->
+            <span class="text-sm text-gray-500 italic">Loading filters...</span>
+        </div>
+        <div class="ml-auto flex gap-2">
+            <button id="editBtn" class="btn-action bg-primary text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary-dark transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Edit
+            </button>
+            <button id="deleteBtn" class="btn-action bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-red-700 transition duration-150 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Delete
+            </button>
+            <button id="exportBtn" class="bg-green-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-green-700 transition duration-150 ease-in-out">
+                Export CSV
+            </button>
+        </div>
+    </div>
+     <div id="editModeIndicator" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-2 rounded-md text-sm mb-4">
+        ⚠️ Edit Mode Active. Click on a cell to modify its value. Click 'Exit Edit' to save changes or cancel.
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrapper flex-grow bg-white p-4 rounded-md shadow-sm overflow-x-auto" id="scrollContainer">
+      <table id="dataTable" class="w-full min-w-max text-sm text-left text-gray-600">
+        <thead class="text-xs text-gray-700 uppercase bg-accent-color">
+          <tr>
+            <!-- Define headers dynamically or statically -->
+            <!-- Example: -->
+            <th scope="col" class="px-4 py-2 sortable" data-field="uniqueId">Unique ID</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="name">Name</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="accountNumber">Account #</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="submissionDate">Date</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="treatmentMonth">Month</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="facility">Facility</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="consent">Consent</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="presenceOfPoa">POA Present</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="consentReceivedBy">Consent By</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="schedulerNote">Scheduler Note</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="roomNumber">Room #</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="status">Status</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="facilityNote">Add. Note</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="frequency">Frequency</th>
+            <th scope="col" class="px-4 py-2 sortable" data-field="gcwp">GCWP</th>
+             <!-- Add other relevant headers -->
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <!-- Loading State -->
+          <tr>
+            <td colspan="14" class="text-center py-10">
+                <div class="inline-flex items-center space-x-2 text-gray-500">
+                    <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Loading data...</span>
+                </div>
+            </td>
+          </tr>
+          <!-- Data rows will be populated here -->
+          <!-- Example Empty/Error State:
+          <tr>
+             <td colspan="14" class="text-center py-10 text-gray-500">No data available for this category.</td>
+          </tr>
+          <tr>
+             <td colspan="14" class="text-center py-10 text-red-500">Error loading data: [Error Message]</td>
+          </tr>
+           -->
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-primary text-white text-center py-2 text-xs mt-6">
+    © <span id="currentYear"></span> Golden Care. All rights reserved.
+  </footer>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden" aria-labelledby="login-modal-title" role="dialog" aria-modal="true">
+    <div class="modal-content bg-white rounded-lg shadow-xl overflow-hidden max-w-sm w-full mx-4 p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 id="login-modal-title" class="text-lg font-semibold text-gray-800">Admin Login</h2>
+        <button class="close-modal text-gray-400 hover:text-gray-600">×</button>
+      </div>
+      <div>
+        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+        <input type="password" id="password" class="modal-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" placeholder="Enter password">
+      </div>
+      <div class="mt-6 flex justify-end">
+        <button id="loginSubmitBtn" class="bg-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-dark transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+          Login
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden" aria-labelledby="edit-modal-title" role="dialog" aria-modal="true">
+      <div class="modal-content bg-white rounded-lg shadow-xl overflow-hidden max-w-md w-full mx-4 p-6">
+          <div class="flex justify-between items-center mb-4">
+              <h2 id="edit-modal-title" class="text-lg font-semibold text-gray-800">Edit Value</h2>
+              <button class="close-modal text-gray-400 hover:text-gray-600">×</button>
+          </div>
+          <div id="editFieldContainer" class="mb-4">
+              <!-- Dynamic content: Label + Input/Select -->
+              <label id="editFieldLabel" for="editValue" class="block text-sm font-medium text-gray-700 mb-1">Field Name</label>
+              <!-- Input will be replaced by select if needed -->
+              <input type="text" id="editValueInput" class="modal-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+              <select id="editValueSelect" class="hidden modal-select w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary bg-white">
+                  <!-- Options added dynamically -->
+              </select>
+          </div>
+          <div class="mt-6 flex justify-end space-x-3">
+              <button id="cancelEditBtn" class="close-modal bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-300 transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+                  Cancel
+              </button>
+              <button id="saveEditBtn" class="bg-primary text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-dark transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                  Save Changes
+              </button>
+          </div>
+      </div>
+  </div>
+
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden" aria-labelledby="delete-modal-title" role="dialog" aria-modal="true">
+      <div class="modal-content bg-white rounded-lg shadow-xl overflow-hidden max-w-sm w-full mx-4 p-6">
+          <div class="text-center">
+               <svg class="mx-auto mb-4 text-red-500 w-12 h-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.008v.008H12v-.008Z" />
+                </svg>
+              <h3 id="delete-modal-title" class="mb-5 text-lg font-normal text-gray-600">Are you sure you want to delete this record?</h3>
+               <p class="text-sm text-gray-500 mb-6">This action cannot be undone.</p>
+              <button id="confirmDeleteBtn" class="text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm inline-flex items-center px-5 py-2.5 text-center mr-2">
+                  Yes, I'm sure
+              </button>
+              <button id="cancelDeleteBtn" class="close-modal text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-gray-200 rounded-lg border border-gray-200 text-sm font-medium px-5 py-2.5 hover:text-gray-900 focus:z-10">
+                  No, cancel
+              </button>
+          </div>
+      </div>
+  </div>
+
+
+<script>
+  // Firebase Configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyAHLfxUu_kCE10jSF00cMlKzEyn0dGVx7Y", // Use environment variables in production
+    authDomain: "goldencaredb-c68d6.firebaseapp.com",
+    projectId: "goldencaredb-c68d6",
+    storageBucket: "goldencaredb-c68d6.firebasestorage.app",
+    messagingSenderId: "321322082859",
+    appId: "1:321322082859:web:f8683ced96856fa36c406e",
+    measurementId: "G-X79VXTRJP2"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // Collections Map
+  const collections = {
+    dental: db.collection('dental'),
+    hygiene: db.collection('hygiene'),
+    dentures: db.collection('dentures')
+  };
+
+  // Constants
+  const ADMIN_PASSWORD = "12122121"; // Store securely in production
+  const VALIDATION_PREFIX = "validation_";
+  const DEBOUNCE_DELAY = 300; // ms for search input
+  const PAGE_SIZE = 10; // Number of records per fetch
+  let isFetching = false; // Prevent multiple fetches at the same time
+
+  // Application State
+  const state = {
+    currentTab: 'dental',
+    isAuthenticated: false,
+    selectedRowData: null, // Stores { id: docId, data: rowData, element: trElement }
+    editMode: false,
+    allData: { dental: [], hygiene: [], dentures: [] }, // Holds raw data fetched
+    filteredData: [], // Holds currently displayed data (filtered, sorted)
+    docIds: { dental: {}, hygiene: {}, dentures: {} }, // Map uniqueId -> docId
+    validationData: {}, // Holds dropdown values { fieldName: [values] }
+    currentSort: { field: 'submissionDate', direction: 'desc' }, // Default sort
+    isLoading: false,
+    error: null,
+    currentPage: 1,
+    totalPages: 1,
+    searchTerm: '',
+    activeFilters: {}
+  };
+
+  // DOM Elements Cache
+  const elements = {
+    authBtn: document.getElementById('authBtn'),
+    editBtn: document.getElementById('editBtn'),
+    deleteBtn: document.getElementById('deleteBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    loginModal: document.getElementById('loginModal'),
+    editModal: document.getElementById('editModal'),
+    deleteModal: document.getElementById('deleteModal'),
+    passwordInput: document.getElementById('password'),
+    loginSubmitBtn: document.getElementById('loginSubmitBtn'),
+    tableBody: document.getElementById('tableBody'),
+    dataTable: document.getElementById('dataTable'),
+    searchBox: document.getElementById('searchBox'),
+    tabs: document.querySelectorAll('.tab'),
+    filterContainer: document.getElementById('filterContainer'),
+    editModeIndicator: document.getElementById('editModeIndicator'),
+    editFieldContainer: document.getElementById('editFieldContainer'),
+    editFieldLabel: document.getElementById('editFieldLabel'),
+    editValueInput: document.getElementById('editValueInput'),
+    editValueSelect: document.getElementById('editValueSelect'),
+    saveEditBtn: document.getElementById('saveEditBtn'),
+    confirmDeleteBtn: document.getElementById('confirmDeleteBtn'),
+    currentYear: document.getElementById('currentYear'),
+    modalCloseBtns: document.querySelectorAll('.close-modal, #cancelEditBtn, #cancelDeleteBtn')
+  };
+
+  // --- Initialization ---
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+  });
+
+  async function initializeApp() {
+    setupEventListeners();
+    elements.currentYear.textContent = new Date().getFullYear();
+    await loadValidationData(); // Load validation first
+    switchTab(state.currentTab, true); // Load initial tab data
+    updateUIState();
+  }
+
+  // --- Event Listeners Setup ---
+  function setupEventListeners() {
+    // Tabs
+    elements.tabs.forEach(tab => {
+      tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
+
+    // Auth
+    elements.authBtn.addEventListener('click', handleAuthClick);
+    elements.loginSubmitBtn.addEventListener('click', handleLogin);
+    elements.passwordInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter') handleLogin();
+    });
+
+    // Modals
+    elements.modalCloseBtns.forEach(btn => btn.addEventListener('click', closeAllModals));
+    window.addEventListener('click', (e) => { // Close modal on backdrop click
+        if (e.target.classList.contains('modal')) closeAllModals();
+    });
+
+    // Actions
+    elements.editBtn.addEventListener('click', toggleEditMode);
+    elements.deleteBtn.addEventListener('click', showDeleteConfirmation);
+    elements.saveEditBtn.addEventListener('click', handleSaveEdit);
+    elements.confirmDeleteBtn.addEventListener('click', handleDelete);
+    elements.exportBtn.addEventListener('click', handleExport);
+
+
+    // Search & Filtering
+    elements.searchBox.addEventListener('input', debounce(applyFiltersAndSearch, DEBOUNCE_DELAY));
+
+    // Sorting
+    elements.dataTable.querySelector('thead').addEventListener('click', handleSortClick);
+
+    // Row Selection & Editing
+    elements.tableBody.addEventListener('click', handleTableBodyClick);
+
+    // Infinite Scroll Event Listener
+    document.getElementById('scrollContainer').addEventListener('scroll', async (e) => {
+      const { scrollTop, scrollHeight, clientHeight } = e.target;
+      if (scrollTop + clientHeight >= scrollHeight - 50 && !isFetching) {
+        await loadMoreData();
+      }
+    });
+  }
+
+  // --- Authentication ---
+  function handleAuthClick() {
+    if (state.isAuthenticated) {
+      logout();
+    } else {
+      showModal(elements.loginModal);
+      elements.passwordInput.focus();
+    }
+  }
+
+  function handleLogin() {
+    if (elements.passwordInput.value === ADMIN_PASSWORD) {
+      state.isAuthenticated = true;
+      closeAllModals();
+      elements.passwordInput.value = '';
+      console.log('Admin logged in.');
+    } else {
+      alert('Incorrect password.');
+    }
+    updateUIState();
+  }
+
+  function logout() {
+    state.isAuthenticated = false;
+    state.editMode = false; // Exit edit mode on logout
+    state.selectedRowData = null;
+    console.log('Admin logged out.');
+    updateUIState();
+  }
+
+  // --- Data Loading & Handling ---
+  async function loadValidationData() {
+    const fields = ['treatmentMonth', 'facility', 'consent', 'presenceOfNok', 'consentReceivedBy', 'status']; // Fields for filters/dropdowns
+    console.log('Loading validation data...');
+    try {
+      for (const field of fields) {
+        const snapshot = await db.collection(VALIDATION_PREFIX + field).get();
+        state.validationData[field] = snapshot.docs
+          .map(doc => doc.data().value)
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+      }
+      console.log('Validation data loaded:', state.validationData);
+      createFilterDropdowns(); // Create filters after validation data is ready
+    } catch (error) {
+      console.error("Error loading validation data: ", error);
+      elements.filterContainer.innerHTML = `<span class="text-sm text-red-500 italic">Error loading filters</span>`;
+    }
+  }
+
+ async function loadTabData(tabName, isInitialLoad = false, append = false) {
+    if (!collections[tabName]) {
+      console.error(`Invalid tab name: ${tabName}`);
+      state.error = `Invalid data category: ${tabName}`;
+      renderTable(); // Render error state
+      return;
+    }
+
+    if (!isInitialLoad && state.allData[tabName].length > 0) {
+      console.log(`Using cached data for ${tabName}`);
+      applyFiltersAndSearch(); // Apply filters to cached data
+      return; // Data already loaded
+    }
+
+    console.log(`Loading data for tab: ${tabName}`);
+    state.isLoading = true;
+    state.error = null;
+    state.selectedRowData = null; // Clear selection on tab switch
+    renderTable(); // Show loading state
+
+    try {
+      // Clear existing data and listeners
+      state.allData[tabName] = [];
+      state.docIds[tabName] = {};
+
+      // Build the base query
+      let query = collections[tabName];
+
+      // Apply filters to the query
+      if (state.activeFilters && Object.keys(state.activeFilters).length > 0) {
+          Object.entries(state.activeFilters).forEach(([field, value]) => {
+              query = query.where(field, '==', value);
+          });
+      }
+
+      // Real-time listener with pagination
+      collections[tabName].onSnapshot(snapshot => {
+          // Process the documents
+          const newData = snapshot.docs.map(doc => {
+              const data = doc.data();
+              const uniqueId = data.uniqueId || doc.id;
+              state.docIds[tabName][uniqueId] = doc.id; // Map uniqueId to Firestore doc ID
+              return { ...data, uniqueId: uniqueId, id: doc.id }; // Include Firestore ID
+          });
+
+          // Update state and re-render
+          state.allData[tabName] = newData;
+          state.totalPages = Math.ceil(state.allData[tabName].length / PAGE_SIZE);
+          if (state.currentPage > state.totalPages) {
+              state.currentPage = state.totalPages || 1; // Reset to last page if needed
+          }
+          applyFiltersAndSearch();
+      }, error => {
+          console.error(`Error getting ${tabName} documents: `, error);
+          state.error = `Failed to load data for ${tabName}. ${error.message}`;
+          state.allData[tabName] = []; // Clear data on error
+          applyFiltersAndSearch(); // Render error state via renderTable
+      });
+    } catch (error) {
+      console.error(`Error getting ${tabName} documents: `, error);
+      state.error = `Failed to load data for ${tabName}. ${error.message}`;
+      state.allData[tabName] = []; // Clear data on error
+      applyFiltersAndSearch(); // Render error state via renderTable
+    } finally {
+      state.isLoading = false;
+      // Render is called by applyFiltersAndSearch
+    }
+  }
+
+  async function loadMoreData() {
+    if (state.currentPage >= state.totalPages) return; // No more data to load
+    isFetching = true;
+    state.currentPage++;
+    await loadTabData(state.currentTab, false, true); // Fetch next chunk of data
+    isFetching = false;
+  }
+
+  // --- UI Updates & Rendering ---
+  function switchTab(tabName, isInitialLoad = false) {
+    state.currentTab = tabName;
+    state.currentSort = { field: 'submissionDate', direction: 'desc' }; // Reset sort on tab switch
+    elements.searchBox.value = ''; // Clear search
+    elements.tabs.forEach(t => {
+      if (t.dataset.tab === tabName) {
+        t.classList.add('border-primary', 'text-primary');
+        t.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+      } else {
+        t.classList.remove('border-primary', 'text-primary');
+        t.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+      }
+    });
+    createFilterDropdowns(); // Re-create/reset filters for the current tab
+    loadTabData(tabName, isInitialLoad);
+    updateUIState();
+  }
+
+  function renderTable() {
+    if (!isFetching) {
+      elements.tableBody.innerHTML = ''; // Clear previous content
+    }
+
+    if (state.isLoading) {
+      elements.tableBody.innerHTML = `<tr><td colspan="14" class="text-center py-10"><div class="inline-flex items-center space-x-2 text-gray-500"><svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span>Loading data...</span></div></td></tr>`;
+      return;
+    }
+
+    if (state.error) {
+        elements.tableBody.innerHTML = `<tr><td colspan="14" class="text-center py-10 text-red-500">Error: ${state.error}</td></tr>`;
+        return;
+    }
+
+    const startIndex = (state.currentPage - 1) * PAGE_SIZE;
+    const endIndex = startIndex + PAGE_SIZE;
+    const pageData = state.filteredData.slice(startIndex, endIndex);
+
+    if (pageData.length === 0) {
+      elements.tableBody.innerHTML = `<tr><td colspan="14" class="text-center py-10 text-gray-500">No matching records found on this page.</td></tr>`;
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    pageData.forEach(item => {
+      const row = document.createElement('tr');
+      row.className = 'bg-white border-b hover:bg-gray-50 transition duration-150 ease-in-out cursor-pointer';
+      row.dataset.id = item.id; // Use Firestore doc ID for identification
+
+      // Define the order and fields to display
+      const fields = [
+        'uniqueId', 'name', 'accountNumber', 'submissionDate', 'treatmentMonth', 'facility',
+        'consent', 'presenceOfPoa', 'consentReceivedBy', 'schedulerNote', 'roomNumber',
+        'status', 'facilityNote', 'frequency', 'gcwp'
+        // Add more fields as needed, matching the <thead>
+      ];
+
+      fields.forEach(field => {
+        const cell = document.createElement('td');
+        cell.className = 'px-4 py-2 whitespace-nowrap';
+        cell.dataset.field = field;
+
+        let value = item[field] || '';
+        // Format dates
+        if ((field === 'submissionDate' || field === 'dateOfVisit') && value) {
+            const date = new Date(value.seconds ? value.seconds * 1000 : value); // Handle Firebase Timestamp or ISO string
+            if (!isNaN(date)) {
+                value = date.toLocaleDateString();
+            } else {
+                value = 'Invalid Date';
+            }
+        }
+        cell.textContent = value;
+        cell.title = value; // Tooltip for potentially long content
+
+        // Add editable class if in edit mode and field is editable
+        const isEditableField = !['uniqueId', 'submissionDate'].includes(field); // Example non-editable fields
+        if (state.editMode && isEditableField && state.isAuthenticated) {
+            cell.classList.add('editable');
+        }
+
+        row.appendChild(cell);
+      });
+
+      fragment.appendChild(row);
+    });
+
+    elements.tableBody.appendChild(fragment);
+
+    // Re-apply selection highlight if necessary
+     if (state.selectedRowData) {
+        const selectedRowElement = elements.tableBody.querySelector(`tr[data-id='${state.selectedRowData.id}']`);
+        if (selectedRowElement) {
+            selectedRowElement.classList.add('selected');
+        } else {
+             // Selected row is no longer in the filtered view, clear selection
+            state.selectedRowData = null;
+            updateUIState();
+        }
+    }
+  }
+
+
+  function updateUIState() {
+    // Auth Button
+    elements.authBtn.textContent = state.isAuthenticated ? 'Logout' : 'Admin Login';
+
+    // Edit/Delete Buttons
+    const canPerformActions = state.isAuthenticated && state.selectedRowData !== null;
+    elements.editBtn.disabled = !state.isAuthenticated; // Enable edit toggle if logged in
+    elements.deleteBtn.disabled = !canPerformActions;
+
+    // Edit Mode Indicator & Button Text
+    elements.editModeIndicator.classList.toggle('hidden', !state.editMode);
+    elements.editBtn.textContent = state.editMode ? 'Exit Edit' : 'Edit';
+    if(state.editMode && !state.isAuthenticated){ // Ensure edit mode is off if logged out
+        state.editMode = false;
+        elements.editModeIndicator.classList.add('hidden');
+        elements.editBtn.textContent = 'Edit';
+    }
+
+     // Re-render table to apply/remove editable classes if edit mode changed
+    if (elements.tableBody.firstChild) { // Avoid re-render if table is empty/loading
+       renderTable();
+    }
+    updateSortIndicators();
+  }
+
+    function updateSortIndicators() {
+        const headers = elements.dataTable.querySelectorAll('thead th[data-field]');
+        headers.forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+            if (th.dataset.field === state.currentSort.field) {
+                th.classList.add(state.currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+            }
+        });
+    }
+
+
+  // --- Modals ---
+  function showModal(modalElement) {
+      modalElement.classList.remove('hidden');
+      // Add transition classes - requires slight delay for opacity
+      requestAnimationFrame(() => {
+          modalElement.classList.add('modal-entering');
+          requestAnimationFrame(() => {
+              modalElement.classList.remove('modal-entering');
+              modalElement.classList.add('modal-entered');
+          });
+      });
+  }
+
+  function closeAllModals() {
+      document.querySelectorAll('.modal').forEach(modal => {
+          modal.classList.remove('modal-entered');
+           // Optionally wait for transition before hiding completely
+           // setTimeout(() => modal.classList.add('hidden'), 200);
+          modal.classList.add('hidden'); // Hide immediately
+      });
+  }
+
+  // --- Filtering, Searching, Sorting ---
+  function createFilterDropdowns() {
+    elements.filterContainer.innerHTML = ''; // Clear existing
+    const filterFields = ['facility', 'treatmentMonth', 'status']; // Fields to create filters for
+
+    filterFields.forEach(field => {
+        const uniqueValues = state.validationData[field] || []; // Use validation data
+        // Alternative: get unique values from current data:
+        // const uniqueValues = [...new Set(state.allData[state.currentTab].map(item => item[field]).filter(Boolean))].sort();
+
+      if (uniqueValues.length > 0) {
+        const select = document.createElement('select');
+        select.className = 'filter-select px-3 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm bg-white';
+        select.dataset.field = field;
+        select.innerHTML = `<option value="">All ${getFieldLabel(field)}</option>`; // Default option
+
+        uniqueValues.forEach(value => {
+          select.innerHTML += `<option value="${value}">${value}</option>`;
+        });
+
+        select.addEventListener('change', applyFiltersAndSearch);
+        elements.filterContainer.appendChild(select);
+      }
+    });
+     if (elements.filterContainer.innerHTML === '') {
+        elements.filterContainer.innerHTML = `<span class="text-sm text-gray-500 italic">No filters available.</span>`;
+    }
+  }
+
+  function applyFiltersAndSearch() {
+    state.searchTerm = elements.searchBox.value.toLowerCase().trim();
+    state.activeFilters = {};
+    elements.filterContainer.querySelectorAll('select').forEach(select => {
+      if (select.value) {
+        state.activeFilters[select.dataset.field] = select.value;
+      }
+    });
+
+    let data = [...state.allData[state.currentTab]]; // Start with all data for the current tab
+
+    // Apply filters
+    if (Object.keys(state.activeFilters).length > 0) {
+      data = data.filter(item => {
+        return Object.entries(state.activeFilters).every(([field, value]) => {
+          return item[field] === value;
+        });
+      });
+    }
+
+    // Apply search
+    if (state.searchTerm) {
+      data = data.filter(item => {
+        return Object.values(item).some(val =>
+          val && val.toString().toLowerCase().includes(state.searchTerm)
+        );
+      });
+    }
+
+    // Apply sort
+    sortData(data, state.currentSort.field, state.currentSort.direction);
+
+    state.filteredData = data;
+    state.totalPages = Math.ceil(state.filteredData.length / PAGE_SIZE);
+    state.currentPage = Math.min(state.currentPage, state.totalPages || 1); // Adjust current page
+    renderTable(); // Render the filtered and sorted data
+    updateUIState(); // Update buttons etc. based on selection visibility
+  }
+
+  function handleSortClick(event) {
+        const header = event.target.closest('th[data-field]');
+        if (!header) return;
+
+        const field = header.dataset.field;
+        let direction = 'asc';
+
+        if (state.currentSort.field === field) {
+            direction = state.currentSort.direction === 'asc' ? 'desc' : 'asc';
+        }
+
+        state.currentSort = { field, direction };
+        applyFiltersAndSearch(); // Re-filter and re-sort
+    }
+
+
+  function sortData(data, field, direction) {
+    data.sort((a, b) => {
+      let aValue = a[field] || '';
+      let bValue = b[field] || '';
+
+       // Handle Firebase Timestamps or date strings
+      if (field === 'submissionDate' || field === 'dateOfVisit') {
+            const dateA = new Date(aValue.seconds ? aValue.seconds * 1000 : aValue);
+            const dateB = new Date(bValue.seconds ? bValue.seconds * 1000 : bValue);
+            aValue = isNaN(dateA) ? 0 : dateA.getTime(); // Use timestamp for comparison
+            bValue = isNaN(dateB) ? 0 : dateB.getTime();
+       }
+
+       // Basic localeCompare for strings, direct comparison otherwise
+       const comparison = (typeof aValue === 'string' && typeof bValue === 'string')
+           ? aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: 'base' })
+           : (aValue < bValue ? -1 : (aValue > bValue ? 1 : 0));
+
+      return direction === 'asc' ? comparison : comparison * -1;
+    });
+  }
+
+
+  // --- Row Actions (Select, Edit, Delete) ---
+  function handleTableBodyClick(event) {
+    const cell = event.target.closest('td');
+    const row = event.target.closest('tr');
+    if (!row || !row.dataset.id) return; // Clicked outside a valid row
+
+    const docId = row.dataset.id;
+    const rowData = state.filteredData.find(item => item.id === docId);
+
+     // Handle cell click for editing
+    if (cell && state.editMode && state.isAuthenticated && cell.classList.contains('editable')) {
+         openEditModal(cell, rowData);
+         return; // Don't process as row selection if editing a cell
+    }
+
+    // Handle row selection
+     if (state.selectedRowData?.id === docId) {
+        // Deselect
+        row.classList.remove('selected');
+        state.selectedRowData = null;
+    } else {
+        // Deselect previous
+        if (state.selectedRowData?.element) {
+            state.selectedRowData.element.classList.remove('selected');
+        }
+        // Select current
+        row.classList.add('selected');
+        state.selectedRowData = { id: docId, data: rowData, element: row };
+    }
+    updateUIState(); // Update button states based on selection
+  }
+
+  function toggleEditMode() {
+    if (!state.isAuthenticated) return; // Should be disabled anyway, but double-check
+    state.editMode = !state.editMode;
+    if (!state.editMode) {
+        // Optionally save pending changes or just exit
+        console.log("Exited edit mode.");
+    } else {
+        console.log("Entered edit mode.");
+    }
+    updateUIState(); // Re-renders table with/without editable classes
+  }
+
+
+  function openEditModal(cellElement, rowData) {
+        const field = cellElement.dataset.field;
+        const currentValue = rowData[field] || '';
+        const fieldLabel = getFieldLabel(field);
+
+        // Store context for saving
+        state.currentEditContext = {
+            docId: rowData.id,
+            field: field,
+            element: cellElement, // The <td> element
+            collection: collections[state.currentTab]
+        };
+
+        elements.editFieldLabel.textContent = fieldLabel;
+
+        // Check if validation data exists for this field (for dropdown)
+        // Map specific field names if validation uses a generic name (e.g., consent)
+        let validationFieldName = field;
+        if (field === 'consentDH' || field === 'consentDDS') validationFieldName = 'consent';
+        if (field === 'presenceOfPoa') validationFieldName = 'presenceOfNok'; // Map form field to validation name
+
+        const options = state.validationData[validationFieldName];
+
+        if (options && Array.isArray(options)) {
+            // Use Select Dropdown
+            elements.editValueInput.classList.add('hidden');
+            elements.editValueSelect.classList.remove('hidden');
+            elements.editValueSelect.innerHTML = `<option value="">-- Select --</option>`; // Default blank
+            options.forEach(option => {
+                const selected = option === currentValue ? 'selected' : '';
+                elements.editValueSelect.innerHTML += `<option value="${option}" ${selected}>${option}</option>`;
+            });
+             elements.editValueSelect.value = currentValue; // Ensure correct value is pre-selected
+             elements.editValueSelect.dataset.target = 'value'; // Indicate which element holds the value
+        } else {
+            // Use Text Input
+            elements.editValueInput.classList.remove('hidden');
+            elements.editValueSelect.classList.add('hidden');
+            elements.editValueInput.value = currentValue;
+            elements.editValueInput.dataset.target = 'value';
+        }
+
+        showModal(elements.editModal);
+        // Focus the visible input/select
+        const targetElement = elements.editValueSelect.classList.contains('hidden') ? elements.editValueInput : elements.editValueSelect;
+        targetElement.focus();
+    }
+
+   async function handleSaveEdit() {
+        if (!state.currentEditContext) return;
+
+        const { docId, field, element, collection } = state.currentEditContext;
+        const targetElement = elements.editValueSelect.classList.contains('hidden') ? elements.editValueInput : elements.editValueSelect;
+        const newValue = targetElement.value;
+
+        const updateData = { [field]: newValue };
+
+        console.log(`Updating doc ${docId} in ${state.currentTab}:`, updateData);
+
+        try {
+            await collection.doc(docId).update(updateData);
+            console.log("Document successfully updated!");
+
+            // Update local state (both allData and filteredData)
+            const updateItem = (item) => {
+                if (item.id === docId) {
+                    return { ...item, [field]: newValue };
+                }
+                return item;
+            };
+            state.allData[state.currentTab] = state.allData[state.currentTab].map(updateItem);
+            state.filteredData = state.filteredData.map(updateItem);
+
+            // Update cell in the UI immediately
+            element.textContent = newValue;
+            element.title = newValue;
+
+
+            closeAllModals();
+        } catch (error) {
+            console.error("Error updating document: ", error);
+            alert(`Error updating data: ${error.message}`);
+        } finally {
+            state.currentEditContext = null; // Clear edit context
+        }
+    }
+
+  function showDeleteConfirmation() {
+    if (!state.selectedRowData || !state.isAuthenticated) return;
+    showModal(elements.deleteModal);
+  }
+
+  async function handleDelete() {
+    if (!state.selectedRowData || !state.isAuthenticated) return;
+
+    const { id: docId } = state.selectedRowData;
+    const collection = collections[state.currentTab];
+
+    console.log(`Attempting to delete doc ${docId} from ${state.currentTab}`);
+
+    try {
+        await collection.doc(docId).delete();
+        console.log("Document successfully deleted!");
+
+        // Remove from local state
+        state.allData[state.currentTab] = state.allData[state.currentTab].filter(item => item.id !== docId);
+        state.filteredData = state.filteredData.filter(item => item.id !== docId);
+
+        state.selectedRowData = null; // Clear selection
+        closeAllModals();
+        renderTable(); // Re-render the table without the deleted row
+        updateUIState(); // Update button states
+        alert('Record deleted successfully.');
+
+    } catch (error) {
+        console.error("Error deleting document: ", error);
+        alert(`Error deleting record: ${error.message}`);
+        closeAllModals();
+    }
+}
+
+
+    // --- Export ---
+    function handleExport() {
+        if (state.allData[state.currentTab].length === 0) {
+            alert("No data to export.");
+            return;
+        }
+
+        const headers = Array.from(elements.dataTable.querySelectorAll('thead th'))
+                           .map(th => th.textContent.replace(/▲|▼/g, '').trim()); // Get header text, remove sort indicators
+
+        // Collect all data (unfiltered, unsorted)
+        const allData = state.allData[state.currentTab];
+
+        const rows = allData.map(item => {
+            // Ensure order matches headers
+            const fields = Array.from(elements.dataTable.querySelectorAll('thead th')).map(th => th.dataset.field);
+            return fields.map(field => {
+                 let value = item[field] || '';
+                 // Format dates consistently for export
+                 if ((field === 'submissionDate' || field === 'dateOfVisit') && value) {
+                     const date = new Date(value.seconds ? value.seconds * 1000 : value);
+                     value = !isNaN(date) ? date.toLocaleDateString() : 'Invalid Date';
+                 }
+                 // Escape commas and quotes for CSV
+                 const stringValue = String(value).replace(/"/g, '""');
+                 return `"${stringValue}"`; // Wrap in quotes
+            }).join(',');
+        });
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        link.setAttribute('href', url);
+        const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        link.setAttribute('download', `${state.currentTab}_consents_${timestamp}.csv`);
+        link.style.visibility = 'hidden';
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url); // Clean up blob URL
+        console.log('Exported data to CSV');
+    }
+
+  // --- Utilities ---
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+    function getFieldLabel(fieldKey) {
+        // Simple mapping for display labels (can be expanded)
+        const labels = {
+            uniqueId: 'Unique ID', name: 'Name', accountNumber: 'Account #', submissionDate: 'Date',
+            treatmentMonth: 'Month', facility: 'Facility', consent: 'Consent', presenceOfPoa: 'POA Present',
+            consentReceivedBy: 'Consent By', schedulerNote: 'Scheduler Note', roomNumber: 'Room #',
+            status: 'Status', facilityNote: 'Add. Note', frequency: 'Frequency', dateOfVisit: 'Visit Date',
+            // Add mappings for any other fields displayed
+        };
+        // Capitalize and space camelCase if no specific label exists
+        return labels[fieldKey] || fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+    }
+
+</script>
+
+</body>
+</html>

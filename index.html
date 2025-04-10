@@ -1,0 +1,330 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Golden Care Dashboard</title>
+    <!-- Bootstrap Styles (Keep for layout grid) -->
+    <link href="assets/css/bootstrap.css" rel="stylesheet" />
+    <!-- FontAwesome Styles (Keep for icons) -->
+    <link href="assets/css/font-awesome.css" rel="stylesheet" />
+    <!-- Custom Styles (Keep for base theme elements we might reuse) -->
+    <!-- <link href="assets/css/custom-styles.css" rel="stylesheet" /> -->
+    <!-- Google Fonts (Keep for typography) -->
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css' />
+
+    <style>
+        /* Reset and Base Styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background-color: #f8f9fa; /* Light grey background */
+            font-size: 14px;
+        }
+
+        #wrapper {
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column; /* Ensure footer is at bottom */
+        }
+
+        /* --- Sidebar Styles --- */
+        .navbar-side {
+            position: fixed; /* Make sidebar fixed */
+            top: 0;
+            left: 0;
+            width: 260px;
+            height: 100%;
+            z-index: 1000;
+            background: linear-gradient(145deg, #2c3e50, #34495e); /* Gradient background */
+            color: #ecf0f1;
+            padding-top: 75px; /* Space for logo */
+            box-shadow: 3px 0px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            transition: width 0.3s ease; /* For potential future collapse */
+        }
+
+        /* Sidebar Logo Area */
+        .sidebar-logo-area {
+             position: fixed; /* Keep logo fixed at the top of sidebar */
+             top: 0;
+             left: 0;
+             width: 260px; /* Match sidebar width */
+             height: 60px;
+             background-color: #ffffff; /* White background for logo */
+             display: flex;
+             align-items: center;
+             padding: 0 15px;
+             border-bottom: 1px solid #e7e7e7;
+             z-index: 1001; /* Above sidebar scroll */
+             transition: width 0.3s ease;
+        }
+
+        .sidebar-logo-area .logo {
+             height: 35px;
+             width: auto;
+        }
+
+        /* Sidebar Navigation */
+        #main-menu {
+            list-style: none;
+            padding: 15px 0; /* Padding top/bottom */
+        }
+
+        #main-menu > li > a {
+            color: #bdc3c7; /* Muted text color */
+            padding: 16px 25px; /* Increased padding */
+            display: block;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+            border-left: 5px solid transparent; /* Highlight indicator */
+            position: relative;
+            transition: all 0.3s ease-in-out;
+            overflow: hidden; /* For pseudo-element animation */
+        }
+
+        #main-menu > li > a .fa {
+            margin-right: 15px;
+            width: 20px;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        /* Interactive Hover Effect */
+        #main-menu > li > a:hover {
+            background-color: rgba(255, 255, 255, 0.05); /* Subtle background */
+            color: #ffffff;
+            border-left: 5px solid #e67e22; /* Orange highlight */
+            padding-left: 30px; /* Indent text */
+            transform: translateX(5px); /* Slight move right */
+        }
+
+        #main-menu > li > a:hover .fa {
+             transform: scale(1.1) rotate(5deg); /* Scale and rotate icon */
+        }
+
+        /* Active Menu Item Style */
+        #main-menu > li > a.active-menu {
+            background-color: rgba(230, 126, 34, 0.1); /* Light orange background */
+            color: #e67e22; /* Orange text */
+            border-left: 5px solid #e67e22;
+            font-weight: 600;
+            padding-left: 30px;
+        }
+         #main-menu > li > a.active-menu .fa {
+            color: #e67e22; /* Match text color */
+            transform: scale(1.1);
+         }
+
+        /* --- Top Navbar - Only Logout --- */
+        .top-navbar-custom {
+            position: fixed;
+            top: 0;
+            left: 260px; /* Start after sidebar */
+            right: 0;
+            height: 60px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #e7e7e7;
+            display: flex;
+            justify-content: flex-end; /* Align items to the right */
+            align-items: center;
+            padding: 0 30px; /* Padding right */
+            z-index: 999; /* Below sidebar logo */
+            transition: left 0.3s ease; /* Match sidebar animation */
+        }
+
+        .logout-button a {
+            color: #e67e22; /* Orange logout text */
+            font-weight: bold;
+            text-decoration: none;
+            padding: 8px 15px;
+            border: 1px solid #e67e22;
+            border-radius: 20px; /* Pill shape */
+            transition: all 0.3s ease;
+        }
+        .logout-button a:hover {
+            background-color: #e67e22;
+            color: #ffffff;
+        }
+        .logout-button .fa {
+            margin-right: 8px;
+        }
+
+
+        /* --- Page Content --- */
+        #page-wrapper {
+            margin-left: 260px; /* Space for fixed sidebar */
+            padding-top: 60px; /* Space for fixed top elements */
+            flex-grow: 1; /* Make content area grow */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px; /* Padding around content */
+            transition: margin-left 0.3s ease; /* Match sidebar animation */
+        }
+
+        #page-inner {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #dashboard-image {
+            max-width: 100%;
+            max-height: 80vh; /* Limit image height */
+            height: auto;
+            border-radius: 8px; /* Softer corners */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15); /* Enhanced shadow */
+        }
+
+
+        /* --- Footer --- */
+        footer {
+            background-color: #e67e22; /* Orange background */
+            padding: 5px 0; /* Minimal padding */
+            height: 30px; /* Reduced height */
+            width: calc(100% - 260px); /* Match content width */
+            margin-left: 260px; /* Align with page wrapper */
+            transition: margin-left 0.3s ease, width 0.3s ease; /* Match sidebar animation */
+        }
+
+        /* Responsive Adjustments */
+        @media(max-width: 992px) { /* Adjust breakpoint */
+             .navbar-side {
+                left: -260px; /* Hide sidebar by default */
+             }
+             /* Add a class 'active' to body/wrapper to show sidebar on mobile */
+             /* This would require JS, but for CSS only, we might make it always visible or use a different approach */
+             /* For simplicity, let's make page wrapper full width */
+             #page-wrapper {
+                margin-left: 0;
+             }
+             .top-navbar-custom {
+                 left: 0; /* Navbar takes full width */
+             }
+             footer {
+                 margin-left: 0;
+                 width: 100%;
+             }
+            .sidebar-logo-area {
+                 /* Decide how to handle logo on mobile - maybe hide or show a smaller version */
+                 display: none; /* Simplest: hide it */
+             }
+        }
+
+        @media(max-width: 768px) {
+            .top-navbar-custom {
+                 padding: 0 15px; /* Reduce padding */
+            }
+            #page-wrapper {
+                padding: 15px; /* Reduce padding */
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+    <div id="wrapper">
+        <!-- Sidebar Logo -->
+        <div class="sidebar-logo-area">
+             <a href="index.html">
+                 <img src="https://cdn.prod.website-files.com/677fe16fd0b28fb6789a126f/678fbeee351061d91e94acaa_Vectors-Wrapper.svg" alt="Golden Care Logo" class="logo">
+             </a>
+        </div>
+
+        <!-- Interactive Sidebar -->
+        <nav class="navbar-side" role="navigation">
+            <div class="sidebar-collapse">
+                <ul class="nav" id="main-menu">
+                    <li>
+                        <a class="active-menu" href="index.html"><i class="fa fa-dashboard"></i> Dashboard</a>
+                    </li>
+                    <li>
+                        <a href="form.html"><i class="fa fa-edit"></i> Forms</a>
+                    </li>
+                    <li>
+                        <a href="view.html"><i class="fa fa-eye"></i> View</a>
+                    </li>
+                    <li>
+                        <a href="schedule generation.html"><i class="fa fa-calendar"></i> Schedule Generation</a>
+                    </li>
+                    <li>
+                        <a href="daily sheets.html"><i class="fa fa-file-text"></i> Daily Sheets</a>
+                    </li>
+                    <li>
+                        <a href="emailing facilities.html"><i class="fa fa-envelope"></i> Emailing Facilities</a>
+                    </li>
+                     <!-- Removed Login/Logout from sidebar if it's in top nav -->
+                </ul>
+            </div>
+        </nav>
+        <!-- /. NAV SIDE  -->
+
+        <!-- Top Navbar with Logout -->
+        <div class="top-navbar-custom">
+             <div class="logout-button">
+                 <a href="login.html">
+                     <i class="fa fa-sign-out"></i> Logout
+                 </a>
+             </div>
+        </div>
+        <!-- /. TOP NAVBAR -->
+
+
+        <!-- Page Content -->
+        <div id="page-wrapper">
+            <div id="page-inner">
+                 <!-- Display the requested image -->
+                 <img id="dashboard-image" src="https://lh3.googleusercontent.com/p/AF1QipNKWoFdeWsBrKH8TKbSWQUrcNeiI0uVOLUWTjY5=s680-w680-h510" alt="Facility Image">
+            </div>
+            <!-- /. PAGE INNER  -->
+        </div>
+        <!-- /. PAGE WRAPPER  -->
+
+        <!-- Orange Footer (No Text) -->
+        <footer>
+            <!-- Content removed -->
+        </footer>
+
+    </div>
+    <!-- /. WRAPPER  -->
+
+    <!-- JS Scripts -->
+    <!-- jQuery Js (Keep for potential Bootstrap JS or custom scripts) -->
+    <script src="assets/js/jquery-1.10.2.js"></script>
+    <!-- Bootstrap Js (Keep for potential components like dropdowns if added later) -->
+    <script src="assets/js/bootstrap.min.js"></script>
+    <!-- Metis Menu Js (Required for the original template's sidebar functionality, might keep or replace) -->
+    <script src="assets/js/jquery.metisMenu.js"></script>
+    <!-- Custom Js (Could contain sidebar toggle logic if needed) -->
+    <script src="assets/js/custom-scripts.js"></script>
+    <script>
+        // Basic initialization if needed (e.g., for metisMenu)
+        $(document).ready(function () {
+            $('#main-menu').metisMenu();
+
+            // Example JS for a mobile toggle if you were to add one back
+            // $('.mobile-menu-trigger').on('click', function(){
+            //     $('.navbar-side').toggleClass('active'); // CSS would define .active state
+            //     $('#page-wrapper, .top-navbar-custom, footer').toggleClass('shifted'); // CSS would define margin shifts
+            // });
+        });
+    </script>
+
+</body>
+</html>

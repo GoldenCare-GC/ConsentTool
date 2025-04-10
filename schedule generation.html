@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Golden Care - Schedule Generator</title>
+  <!-- Tailwind CSS CDN -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <!-- Firebase JS SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <style>
+    /* Define primary color */
+    .bg-primary { background-color: #FF7420; }
+    .text-primary { color: #FF7420; }
+    .border-primary { border-color: #FF7420; }
+    .hover\:bg-primary-dark:hover { background-color: #E06010; }
+    .focus\:ring-primary:focus { --tw-ring-color: #FF7420; }
+
+    /* Custom base styles */
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    }
+
+    /* Modal Styling */
+    .modal { transition: opacity 0.2s ease-in-out; }
+    .modal-content { transition: transform 0.2s ease-in-out; }
+    .modal-entering { opacity: 0; }
+    .modal-entering .modal-content { transform: scale(0.95); }
+    .modal-entered { opacity: 1; }
+    .modal-entered .modal-content { transform: scale(1); }
+
+    /* Schedule Output Styling */
+    #scheduleOutput .schedule-header {
+        text-align: center;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #ccc;
+        padding-bottom: 10px;
+    }
+    #scheduleOutput .schedule-header h1 {
+        font-size: 1.4em;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+     #scheduleOutput .schedule-header p {
+        font-size: 1.1em;
+        margin: 2px 0;
+     }
+    #scheduleOutput .schedule-subheader {
+        display: flex;
+        justify-content: space-between;
+        font-weight: bold;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+     #scheduleOutput .schedule-subheader div {
+        flex-basis: 30%; /* Adjust as needed */
+     }
+      #scheduleOutput .schedule-subheader div:last-child {
+        text-align: right;
+     }
+
+    #scheduleOutput .patient-entry {
+        border-bottom: 1px solid #eee;
+        padding: 10px 0;
+        margin-bottom: 10px;
+        page-break-inside: avoid; /* Prevent breaking inside patient entry during print */
+    }
+     #scheduleOutput .patient-entry p {
+         margin: 3px 0;
+         font-size: 0.95em;
+     }
+    #scheduleOutput .patient-name {
+        font-weight: bold;
+        font-size: 1.1em;
+        margin-bottom: 5px;
+    }
+     #scheduleOutput .patient-detail {
+        padding-left: 15px;
+     }
+     #scheduleOutput .poa-present {
+         color: #D32F2F; /* Red */
+         font-weight: bold;
+     }
+     #scheduleOutput .poa-not-present {
+         color: #388E3C; /* Green */
+     }
+
+    /* Print specific styles */
+     @media print {
+       html, body {
+         height: auto; margin: 0 !important; padding: 0 !important;
+       }
+       body {
+         -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 1cm !important;
+       }
+       header, footer, #scheduleGeneratorSection button:not(#printScheduleBtn), .modal button:not(#printScheduleBtn), .modal .close-modal, #printScheduleBtn {
+         display: none !important;
+       }
+       #scheduleGeneratorSection { display: none !important; }
+       main { padding: 0 !important; }
+
+       #scheduleModal {
+         position: relative !important; inset: auto !important; display: block !important;
+         background: none !important; padding: 0 !important; box-shadow: none !important;
+         border: none !important; z-index: auto !important; width: 100% !important;
+         max-width: none !important; overflow: visible !important;
+       }
+        #scheduleModal .modal-content {
+            max-width: 100% !important; box-shadow: none !important; border: none !important;
+            border-radius: 0 !important; overflow: visible !important; display: block !important;
+            width: 100% !important;
+        }
+        #scheduleOutput {
+             max-height: none !important; overflow: visible !important; padding: 0 !important;
+         }
+        #scheduleModal .border-b, #scheduleModal .border-t, #scheduleModal h2#schedule-modal-title {
+            display: none; /* Hide modal chrome */
+        }
+     }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col min-h-screen">
+
+<header class="bg-primary text-white shadow-md relative">
+  <div class="bg-white p-1 rounded-sm flex items-center justify-center h-8 w-auto absolute left-0 top-0">
+    <img src="https://cdn.prod.website-files.com/677fe16fd0b28fb6789a126f/678fbeee351061d91e94acaa_Vectors-Wrapper.svg" alt="Golden Care Logo" class="h-5">
+  </div>
+  <div class="container mx-auto py-0.5 flex justify-center items-center h-10">
+    <h1 class="text-xl font-semibold text-center">Schedule Generator</h1>
+  </div>
+</header>
+
+<!-- Main Content -->
+<main class="flex-grow container mx-auto px-4 py-6 flex flex-col items-center">
+
+  <!-- Schedule Generation Section -->
+  <div id="scheduleGeneratorSection" class="bg-white p-6 rounded-lg shadow-md w-full max-w-4xl">
+      <h2 class="text-xl font-semibold text-gray-700 mb-6 border-b pb-3">Generate Visit Schedule</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+          <!-- Department Dropdown -->
+          <div>
+              <label for="scheduleDepartment" class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+              <select id="scheduleDepartment" name="scheduleDepartment" required class="schedule-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm bg-white">
+                  <option value="">-- Select Department --</option>
+                  <option value="hygiene">Hygiene</option>
+                  <option value="dental">Dental</option>
+                  <option value="dentures">Dentures</option>
+              </select>
+          </div>
+          <!-- Provider Name (Conditional Input/Select) -->
+           <div>
+              <label for="scheduleProviderSelect" class="block text-sm font-medium text-gray-700 mb-1">Provider Name</label>
+              <!-- Select for Dental/Hygiene -->
+              <select id="scheduleProviderSelect" name="scheduleProviderSelect" class="schedule-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm bg-white hidden">
+                  <option value="">-- Select Provider --</option>
+                  <!-- Options populated by JS -->
+              </select>
+              <!-- Input for Dentures -->
+              <input type="text" id="scheduleProviderInput" name="scheduleProviderInput" placeholder="Enter Denturist Name" class="schedule-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm hidden">
+          </div>
+          <!-- Visit Date Input -->
+          <div>
+              <label for="scheduleVisitDate" class="block text-sm font-medium text-gray-700 mb-1">Visit Date</label>
+              <input type="date" id="scheduleVisitDate" name="scheduleVisitDate" required class="schedule-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm">
+          </div>
+          <!-- Treatment Month Dropdown -->
+          <div>
+              <label for="scheduleMonth" class="block text-sm font-medium text-gray-700 mb-1">Treatment Month</label>
+              <select id="scheduleMonth" name="scheduleMonth" required class="schedule-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm bg-white">
+                  <option value="">-- Select Month --</option>
+                  <!-- Options populated by JS -->
+              </select>
+          </div>
+          <!-- Facility Dropdown -->
+          <div>
+              <label for="scheduleFacility" class="block text-sm font-medium text-gray-700 mb-1">Facility</label>
+              <select id="scheduleFacility" name="scheduleFacility" required class="schedule-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm bg-white">
+                  <option value="">-- Select Facility --</option>
+                  <!-- Options populated by JS -->
+              </select>
+          </div>
+          <!-- Time Frame Dropdown -->
+           <div>
+              <label for="scheduleTimeFrameSelect" class="block text-sm font-medium text-gray-700 mb-1">Time Frame</label>
+              <select id="scheduleTimeFrameSelect" name="scheduleTimeFrameSelect" required class="schedule-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm bg-white">
+                  <option value="">-- Select Time Frame --</option>
+                  <!-- Options populated by JS -->
+                </select>
+          </div>
+           <!-- Address field removed -->
+      </div>
+
+      <!-- Button and Loading Indicator -->
+      <div class="flex justify-end items-center mt-4">
+           <div id="scheduleLoadingIndicator" class="hidden text-center mr-4 text-gray-500">
+                <svg class="animate-spin h-5 w-5 text-primary inline-block mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Generating...
+            </div>
+          <button id="generateScheduleBtn" class="bg-primary text-white px-5 py-2 rounded-md text-sm font-medium hover:bg-primary-dark transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+              Generate Schedule
+          </button>
+      </div>
+  </div>
+  <!-- == END: Schedule Generation Section == -->
+
+</main>
+
+<!-- Footer -->
+<footer class="bg-primary text-white text-center py-2 text-xs mt-8">
+  © 2025 Golden Care. All rights reserved.
+</footer>
+
+<!-- Schedule Output Modal -->
+<div id="scheduleModal" class="modal fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 hidden p-4" aria-labelledby="schedule-modal-title" role="dialog" aria-modal="true">
+  <div class="modal-content bg-white rounded-lg shadow-xl overflow-hidden w-full max-w-3xl">
+      <div class="flex justify-between items-center p-4 border-b bg-gray-50 print:hidden">
+          <h2 id="schedule-modal-title" class="text-lg font-semibold text-gray-800">Generated Schedule</h2>
+          <button class="close-modal text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+      </div>
+      <div id="scheduleOutput" class="p-5 overflow-y-auto" style="max-height: 75vh;">
+          <p class="text-gray-500 italic text-center py-6">Select criteria and click "Generate Schedule" to view results.</p>
+      </div>
+      <div class="flex justify-end p-4 border-t bg-gray-50 print:hidden">
+           <button id="printScheduleBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition duration-150 ease-in-out mr-2">
+              Print Schedule
+          </button>
+          <button class="close-modal bg-gray-200 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-300 transition duration-150 ease-in-out">
+              Close
+          </button>
+      </div>
+  </div>
+</div>
+
+
+<script>
+  // Firebase Configuration
+  const firebaseConfig = {
+    // IMPORTANT: Replace with your actual Firebase config
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID",
+    measurementId: "YOUR_MEASUREMENT_ID" // Optional
+  };
+
+  // Initialize Firebase
+  try {
+      firebase.initializeApp(firebaseConfig);
+  } catch (e) {
+      console.error("Firebase initialization error:", e);
+      alert("Could not initialize Firebase. Please check your configuration and console for errors.");
+  }
+  const db = firebase.firestore();
+
+  // Constants
+  const VALIDATION_PREFIX = "validation_";
+
+  // Application State
+  const state = {
+    validationData: {}, // Holds dropdown values { fieldName: [values] }
+  };
+
+  // DOM Elements Cache
+  const elements = {
+    scheduleDepartment: document.getElementById('scheduleDepartment'),
+    scheduleVisitDate: document.getElementById('scheduleVisitDate'),
+    scheduleProviderSelect: document.getElementById('scheduleProviderSelect'), // Select for DH/DDS
+    scheduleProviderInput: document.getElementById('scheduleProviderInput'),   // Input for Denturist
+    scheduleMonth: document.getElementById('scheduleMonth'),
+    scheduleFacility: document.getElementById('scheduleFacility'),
+    scheduleTimeFrameSelect: document.getElementById('scheduleTimeFrameSelect'), // Changed ID
+    // scheduleAddress removed
+    generateScheduleBtn: document.getElementById('generateScheduleBtn'),
+    scheduleLoadingIndicator: document.getElementById('scheduleLoadingIndicator'),
+    scheduleModal: document.getElementById('scheduleModal'),
+    scheduleModalTitle: document.getElementById('schedule-modal-title'),
+    scheduleOutput: document.getElementById('scheduleOutput'),
+    printScheduleBtn: document.getElementById('printScheduleBtn'),
+    currentYear: document.getElementById('currentYear'), // Though footer is static now
+    modalCloseBtns: document.querySelectorAll('.close-modal')
+  };
+
+  // --- Initialization ---
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+  });
+
+  async function initializeApp() {
+    if (!db) {
+        console.error("Firestore database instance is not available.");
+        return;
+    }
+    setupEventListeners();
+    // elements.currentYear.textContent = new Date().getFullYear(); // Footer is static now
+    try {
+        await loadValidationData();
+        populateScheduleFilters(); // Populate static dropdowns
+    } catch (error) {
+        console.error("Initialization failed:", error);
+        alert(`Could not load necessary data: ${error.message}. Please refresh the page.`);
+    }
+    elements.scheduleVisitDate.value = new Date().toISOString().split('T')[0];
+    handleDepartmentChange(); // Set initial state for provider input
+  }
+
+  // --- Event Listeners Setup ---
+  function setupEventListeners() {
+    elements.generateScheduleBtn.addEventListener('click', generateSchedule);
+    elements.printScheduleBtn.addEventListener('click', printSchedule);
+
+    // Listen for changes on the Department dropdown
+    elements.scheduleDepartment.addEventListener('change', handleDepartmentChange);
+
+    // Modal close buttons
+    elements.modalCloseBtns.forEach(btn => btn.addEventListener('click', closeAllModals));
+    // Backdrop click listener
+    elements.scheduleModal.addEventListener('click', (e) => {
+        if (e.target === elements.scheduleModal) closeAllModals();
+    });
+  }
+
+  // --- Handle Department Change for Provider Input ---
+  function handleDepartmentChange() {
+      const department = elements.scheduleDepartment.value;
+      const providerSelect = elements.scheduleProviderSelect;
+      const providerInput = elements.scheduleProviderInput;
+      const providerLabel = document.querySelector('label[for="scheduleProviderSelect"]'); // Find the label
+
+      // Reset both first
+      providerSelect.classList.add('hidden');
+      providerInput.classList.add('hidden');
+      providerSelect.required = false;
+      providerInput.required = false;
+      providerSelect.innerHTML = '<option value="">-- Select Provider --</option>'; // Clear options
+      providerInput.value = ''; // Clear text input
+
+      if (department === 'dental') {
+          providerLabel.textContent = "Provider Name (DDS)"; // Update label
+          populateProviderDropdown('providerDDS');
+          providerSelect.classList.remove('hidden');
+          providerSelect.required = true;
+      } else if (department === 'hygiene') {
+          providerLabel.textContent = "Provider Name (DH)"; // Update label
+          populateProviderDropdown('providerDH');
+          providerSelect.classList.remove('hidden');
+          providerSelect.required = true;
+      } else if (department === 'dentures') {
+          providerLabel.textContent = "Provider Name (Denturist)"; // Update label
+          providerInput.classList.remove('hidden');
+          providerInput.required = true;
+      } else {
+          // No department selected or other value
+          providerLabel.textContent = "Provider Name"; // Reset label
+      }
+  }
+
+  // --- Populate Provider Dropdown ---
+  function populateProviderDropdown(providerTypeKey) { // e.g., 'providerDDS' or 'providerDH'
+      const providerSelect = elements.scheduleProviderSelect;
+      providerSelect.innerHTML = '<option value="">-- Select Provider --</option>'; // Reset options
+
+      if (state.validationData[providerTypeKey] && state.validationData[providerTypeKey].length > 0) {
+          state.validationData[providerTypeKey].forEach(provider => {
+              providerSelect.innerHTML += `<option value="${provider}">${provider}</option>`;
+          });
+      } else {
+          providerSelect.innerHTML += '<option value="" disabled>No providers found</option>';
+          console.warn(`Validation data for ${providerTypeKey} not found or empty.`);
+      }
+  }
+
+
+  // --- Data Loading (Validation Data) ---
+  async function loadValidationData() {
+    // Added providerDH, providerDDS, time
+    const fields = ['treatmentMonth', 'facility', 'providerDH', 'providerDDS', 'time'];
+    console.log('Loading validation data for:', fields.join(', '));
+    try {
+      for (const field of fields) {
+        const snapshot = await db.collection(VALIDATION_PREFIX + field).get();
+        // Store values directly, sorting is good for display consistency
+        state.validationData[field] = snapshot.docs
+          .map(doc => doc.data().value)
+          .filter(Boolean)
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+      }
+      console.log('Validation data loaded successfully:', state.validationData);
+    } catch (error) {
+      console.error("Error loading validation data: ", error);
+      throw new Error(`Failed to load validation data (${error.message})`);
+    }
+  }
+
+  // --- UI Population (Dropdowns - Month, Facility, Time) ---
+  function populateScheduleFilters() {
+      console.log("Populating static schedule filters...");
+      const monthSelect = elements.scheduleMonth;
+      const facilitySelect = elements.scheduleFacility;
+      const timeFrameSelect = elements.scheduleTimeFrameSelect;
+
+      // Populate Months
+      if (state.validationData.treatmentMonth && state.validationData.treatmentMonth.length > 0) {
+          monthSelect.innerHTML = '<option value="">-- Select Month --</option>';
+          state.validationData.treatmentMonth.forEach(month => {
+              monthSelect.innerHTML += `<option value="${month}">${month}</option>`;
+          });
+      } else {
+          monthSelect.innerHTML = '<option value="">No months found</option>';
+      }
+
+      // Populate Facilities
+      if (state.validationData.facility && state.validationData.facility.length > 0) {
+          facilitySelect.innerHTML = '<option value="">-- Select Facility --</option>';
+          state.validationData.facility.forEach(facility => {
+              facilitySelect.innerHTML += `<option value="${facility}">${facility}</option>`;
+          });
+      } else {
+          facilitySelect.innerHTML = '<option value="">No facilities found</option>';
+      }
+
+       // Populate Time Frames
+      if (state.validationData.time && state.validationData.time.length > 0) {
+          timeFrameSelect.innerHTML = '<option value="">-- Select Time Frame --</option>';
+          state.validationData.time.forEach(time => {
+              timeFrameSelect.innerHTML += `<option value="${time}">${time}</option>`;
+          });
+      } else {
+          timeFrameSelect.innerHTML = '<option value="">No time frames found</option>';
+      }
+  }
+
+
+  // --- Schedule Generation ---
+  async function generateSchedule() {
+      const department = elements.scheduleDepartment.value;
+      const visitDate = elements.scheduleVisitDate.value;
+      const selectedMonth = elements.scheduleMonth.value;
+      const selectedFacility = elements.scheduleFacility.value;
+      const timeFrame = elements.scheduleTimeFrameSelect.value; // Use select value
+      // Get provider name based on visible input/select
+      let providerName = '';
+      if (department === 'dental' || department === 'hygiene') {
+          providerName = elements.scheduleProviderSelect.value;
+      } else if (department === 'dentures') {
+          providerName = elements.scheduleProviderInput.value.trim();
+      }
+
+      // *** Input Validation ***
+      const errors = [];
+      if (!department) errors.push("Department");
+      // Provider Name validation depends on department
+      if ((department === 'dental' || department === 'hygiene') && !providerName) errors.push("Provider Name");
+      if (department === 'dentures' && !providerName) errors.push("Provider Name (Denturist)");
+      if (!visitDate) errors.push("Visit Date");
+      if (!selectedMonth) errors.push("Treatment Month");
+      if (!selectedFacility) errors.push("Facility");
+      if (!timeFrame) errors.push("Time Frame");
+      // Address removed
+
+      if (errors.length > 0) {
+          alert(`Please fill in the following fields: ${errors.join(', ')}.`);
+          return;
+      }
+
+      const selectedCollection = department;
+
+      console.log(`Generating ${department} Schedule for: ${selectedFacility} - ${selectedMonth}`);
+      elements.scheduleLoadingIndicator.classList.remove('hidden');
+      elements.generateScheduleBtn.disabled = true;
+      elements.scheduleOutput.innerHTML = '<p class="text-gray-500 italic text-center py-6">Loading schedule...</p>';
+      elements.scheduleModalTitle.textContent = `Generated ${department.charAt(0).toUpperCase() + department.slice(1)} Schedule`;
+      showModal(elements.scheduleModal);
+
+      try {
+          const querySnapshot = await db.collection(selectedCollection)
+              .where('treatmentMonth', '==', selectedMonth)
+              .where('facility', '==', selectedFacility)
+              .where('status', '==', 'Consented')
+              .orderBy('name')
+              .get();
+
+          if (querySnapshot.empty) {
+              elements.scheduleOutput.innerHTML = `<p class="text-red-500 text-center py-6">No consented ${department} patients found for the selected month and facility.</p>`;
+          } else {
+              const patients = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              console.log("Fetched patients for schedule:", patients.length);
+              // Pass providerName obtained earlier
+              const formattedHtml = formatScheduleOutput(patients, visitDate, providerName, selectedFacility, timeFrame, department); // Removed address
+              elements.scheduleOutput.innerHTML = formattedHtml;
+          }
+
+      } catch (error) {
+          console.error("Error generating schedule: ", error);
+          let errorMsg = `Error loading schedule: ${error.message}`;
+          if (error.code === 'permission-denied') {
+              errorMsg = `Permission denied accessing the '${selectedCollection}' collection. Please check Firebase rules.`;
+          } else if (error.code === 'unimplemented') {
+              errorMsg = `Query error: The required index might be missing. Please check the Firestore console for index creation suggestions. Error: ${error.message}`;
+          }
+          elements.scheduleOutput.innerHTML = `<p class="text-red-500 text-center py-6">${errorMsg}</p>`;
+      } finally {
+          elements.scheduleLoadingIndicator.classList.add('hidden');
+          elements.generateScheduleBtn.disabled = false;
+      }
+  }
+
+  // --- Formatting Schedule Output ---
+  // Removed 'address' parameter
+  function formatScheduleOutput(patients, visitDate, providerName, facilityName, timeFrame, department) {
+      const dateObj = new Date(visitDate + 'T00:00:00');
+      const formattedDate = dateObj.toLocaleDateString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+      const departmentDisplay = department.charAt(0).toUpperCase() + department.slice(1);
+
+      let html = `<div class="schedule-header">
+                      <h1>Golden Care Dental Services</h1>
+                      <p>${formattedDate}</p>
+                  </div>`;
+      html += `<div class="schedule-subheader">
+                   <div>${providerName} (${departmentDisplay})</div>
+                   <div>${facilityName}</div>
+                   <div>Time frame ${timeFrame}</div>
+               </div>`;
+       // Address div removed
+
+      patients.forEach(patient => {
+          let poaStatusText = 'POA Info N/A';
+          let poaClass = '';
+          const poaValue = patient.presenceOfPoa ? String(patient.presenceOfPoa).toLowerCase().trim() : '';
+          if (poaValue === 'true' || poaValue.includes('must be present')) { poaStatusText = 'Must Be Present'; poaClass = 'poa-present'; }
+          else if (poaValue.includes('will not be present')) { poaStatusText = 'Will Not Be Present'; poaClass = 'poa-not-present'; }
+          else if (poaValue.includes('might be present')) { poaStatusText = 'Might Be Present - Can Proceed In Absence'; poaClass = 'poa-not-present'; }
+          else if (poaValue === 'false' || poaValue === '' || poaValue.includes('not required')) { poaStatusText = 'POA Not Required / Not Present'; poaClass = 'poa-not-present'; }
+
+          let notes = [];
+          if (patient.medication) notes.push(`Medication: ${patient.medication}`);
+          if (patient.facilityNote) notes.push(`Facility Note: ${patient.facilityNote}`);
+          if (patient.schedulerNote) notes.push(`Scheduler Note: ${patient.schedulerNote}`);
+          let treatmentInfo = patient.treatment || patient.treatmentNeeded || patient.serviceNeeded || patient.procedure || '';
+          if (treatmentInfo) notes.push(`Treatment/Service: ${treatmentInfo}`);
+
+          let consentValue = patient.consentDH || patient.consentDDS || patient.consentDentures || patient.consent || 'N/A';
+
+          const escapeHtml = (unsafe) => unsafe.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">").replace(/"/g, """).replace(/'/g, "'");
+
+          html += `<div class="patient-entry">
+                       <p class="patient-name">${escapeHtml(patient.name || 'N/A')}</p>
+                       <div class="patient-detail">
+                           <p>Room#: ${escapeHtml(patient.roomNumber || 'N/A')}</p>
+                           <p class="${poaClass}">${escapeHtml(poaStatusText)}</p>
+                           <p>Consent: ${escapeHtml(consentValue)}</p>
+                            ${notes.map(note => `<p>${escapeHtml(note)}</p>`).join('')}
+                       </div>
+                   </div>`;
+      });
+
+      if (patients.length === 0) {
+           html += '<p class="text-gray-500 text-center py-6">No patient data to display.</p>';
+      }
+      return html;
+  }
+
+   // --- Printing ---
+   function printSchedule() {
+        console.log("Initiating print...");
+        window.print();
+    }
+
+  // --- Modals ---
+  function showModal(modalElement) {
+      modalElement.classList.remove('hidden');
+      requestAnimationFrame(() => {
+          modalElement.classList.add('modal-entering');
+          requestAnimationFrame(() => {
+              modalElement.classList.remove('modal-entering');
+              modalElement.classList.add('modal-entered');
+          });
+      });
+  }
+
+  function closeAllModals() {
+      document.querySelectorAll('.modal').forEach(modal => {
+          modal.classList.remove('modal-entered');
+          modal.classList.add('hidden');
+      });
+  }
+
+</script>
+
+</body>
+</html>
